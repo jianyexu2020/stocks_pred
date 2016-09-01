@@ -39,8 +39,6 @@ stocks_data = pd.read_csv("stocks.csv")
 stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
 #print stocks_data.head()
 
-#tech_stocks = ['ACN', 'ATVI', 'ADBE', 'AKAM', 'ADS', 'GOOGL', 'GOOG', 'ADI', 'AAPL', 'AMAT', 'ADSK', 'ADP', 'AVGO', 'CA', 'CSCO', 'CTXS', 'CTSH', 'CSRA', 'EBAY', 'EA', 'EMC', 'EQIX', 'FFIV', 'FB', 'FIS', 'FSLR', 'FISV', 'GPN', 'HRS', 'HPE', 'HPQ', 'INTC', 'IBM', 'INTU', 'JNPR', 'KLAC', 'LRCX', 'LLTC', 'MA', 'MCHP', 'MU', 'MSFT', 'MSI', 'NTAP', 'NFLX', 'NVDA', 'ORCL', 'PAYX', 'PYPL', 'QRVO', 'QCOM', 'RHT', 'CRM', 'STX', 'SWKS', 'SYMC', 'TEL', 'TDC', 'TXN', 'TSS', 'VRSN', 'V', 'WDC', 'WU', 'XRX', 'XLNX', 'YHOO']
-#tech_stocks = ['AAPL']
 #stocks = ["AAPL"]
 stocks = pickle.load(open("sp500_symbols.pk","r"))
 
@@ -65,13 +63,14 @@ for stock in stocks:
     sybl.loc[:,"stock_index"] = sybl[["Symbol", "Date"]].apply(lambda x: '_'.join(x), axis=1)
     sybl = sybl.set_index(['stock_index'])
     sybl = sybl.sort_index()
+    print sybl.iloc[-1,:]
 
     close = np.array(sybl.Adj_Close)
-    volumn = np.array(sybl.Volume)
+    volume = np.array(sybl.Volume)
     high = np.array(sybl.High)
     low = np.array(sybl.Low)
     close_noadj = np.array(sybl.Close)
-    #print volumn
+    #print volume
     macd, signal, hist = talib.MACD(np.array(close),
                                 fastperiod=12,
                                 slowperiod=26,
@@ -84,11 +83,11 @@ for stock in stocks:
     ema_40 = talib.EMA(np.array(close), 40)
     ema_50 = talib.EMA(np.array(close), 50)
 
-    v_ema_10 = talib.EMA(np.array(volumn, dtype=float), 10)
-    v_ema_20 = talib.EMA(np.array(volumn, dtype=float), 20)
-    v_ema_30 = talib.EMA(np.array(volumn, dtype=float), 30)
-    v_ema_40 = talib.EMA(np.array(volumn, dtype=float), 40)
-    v_ema_50 = talib.EMA(np.array(volumn, dtype=float), 50)
+    v_ema_10 = talib.EMA(np.array(volume, dtype=float), 10)
+    v_ema_20 = talib.EMA(np.array(volume, dtype=float), 20)
+    v_ema_30 = talib.EMA(np.array(volume, dtype=float), 30)
+    v_ema_40 = talib.EMA(np.array(volume, dtype=float), 40)
+    v_ema_50 = talib.EMA(np.array(volume, dtype=float), 50)
 
     slowk, slowd = talib.STOCH(high=high, low=low, close=close_noadj ,fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
     #print slowk.shape
@@ -127,9 +126,9 @@ for stock in stocks:
     sybl_with_lag_data["target"] = sybl_with_lag_data["increase_from_last_day"].apply(lambda x: 1 if x > 0 else 0)
     #print sybl_with_lag_data
     stocks_with_lag_data = stocks_with_lag_data.append(sybl_with_lag_data) 
+latest_daily_report_cols = [ "Adj_Close", "Close","High","Low","Open", "Volume", "macd", "rsi", "slowk", "slowd", "ema_10", "v_ema_10"]
 
-latest_daily_report = latest_daily_report.iloc[:,:11]
-del latest_daily_report["Symbol"]
+latest_daily_report = latest_daily_report[latest_daily_report_cols]
 latest_daily_report["Adj_Close"] = latest_daily_report["Adj_Close"].astype("float")
 latest_daily_report["Close"] = latest_daily_report["Close"].astype("float")
 latest_daily_report["Open"] = latest_daily_report["Open"].astype("float")
@@ -140,6 +139,10 @@ latest_daily_report["rsi"] = latest_daily_report["rsi"].astype("float")
 latest_daily_report["macd"] = latest_daily_report["macd"].astype("float")
 latest_daily_report["slowk"] = latest_daily_report["slowk"].astype("float")
 latest_daily_report["slowd"] = latest_daily_report["slowd"].astype("float")
+latest_daily_report["ema_10"] = latest_daily_report["ema_10"].astype("float")
+latest_daily_report["v_ema_10"] = latest_daily_report["v_ema_10"].astype("float")
+latest_daily_report["close_over_ema_10"] = latest_daily_report["Adj_Close"] / latest_daily_report["ema_10"]
+latest_daily_report["volume_over_ema_10"] = latest_daily_report["Volume"] / latest_daily_report["v_ema_10"]
 
 
 latest_daily_report = np.round(latest_daily_report, 2)
