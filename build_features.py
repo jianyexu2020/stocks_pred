@@ -63,7 +63,7 @@ for stock in stocks:
     sybl.loc[:,"stock_index"] = sybl[["Symbol", "Date"]].apply(lambda x: '_'.join(x), axis=1)
     sybl = sybl.set_index(['stock_index'])
     sybl = sybl.sort_index()
-    print sybl.iloc[-1,:]
+    print sybl.iloc[-3:,:]
 
     close = np.array(sybl.Adj_Close)
     volume = np.array(sybl.Volume)
