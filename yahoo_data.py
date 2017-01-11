@@ -1,11 +1,7 @@
-#!/usr/bin/env python
-import urllib
+import urllib2
 import pytz
-import pandas as pd
-
 from bs4 import BeautifulSoup
 from datetime import datetime
-from pandas.io.data import DataReader
 import pickle
 from yahoo_finance import Share
 import pandas as pd
@@ -18,8 +14,8 @@ END = datetime.today().utcnow()
 #scrape the list of SPY
 def scrape_list(site):
     hdr = {'User-Agent': 'Mozilla/5.0'}
-    req = urllib.Request(site, headers=hdr)
-    page = urllib.urlopen(req)
+    req = urllib2.Request(site, headers=hdr)
+    page = urllib2.urlopen(req)
     soup = BeautifulSoup(page)
 
     table = soup.find('table', {'class': 'wikitable sortable'})
@@ -40,23 +36,19 @@ if __name__ == "__main__":
     end_date = str(datetime.now().date())
     sector_tickers = scrape_list(SITE)
     stocks = [sybl for key, value in sector_tickers.items() for sybl in value]
-    print(stocks)
     #print len(stocks)
     with open("sp500_symbols.pk",'w') as f:
         pickle.dump(stocks, f)
     
-    stocks = stocks + ["QQQ", "SPY", "GLD", "SLV", "HAWK", 
-                       "TSLA", "BABA", "CELG", "NFLX", "TWTR"]
-    #stocks = ["AAPL"]
-    
-    columns = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
-    stocks_data = pd.DataFrame(columns=columns)
+    stocks = stocks + ["QQQ", "SPY", "GLD", "SLV", "HAWK", "TSLA", "BABA", "CELG", "NFLX", "TWTR"]
+    print "There are %d stocks' data to fecth" % len(stocks)
 
+    stock_data_combined = pd.DataFrame(columns=variables)
     for stock in stocks:
         share = Share(stock)
-        print("Fetching data for stock %s" % stock)
+        print("Fetching stock %s data" % stock)
         stock_data = pd.DataFrame(share.get_historical(start_date, end_date))
-        #print stock_data
-    
-        with open('stocks.csv', 'a') as f:
-            stock_data.to_csv(f, index=False, header=False)
+        stock_data_combined = pd.concat([stock_data_combined, stock_data])
+
+    with open('stocks.csv', 'a+') as f:
+        stock_data_combined.to_csv(f, index=False, header=False)

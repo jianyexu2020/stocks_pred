@@ -36,17 +36,15 @@ def buildLaggedFeatures(s,lag=2,dropna=True):
         return res 
 
 stocks_data = pd.read_csv("stocks.csv")
+stocks_data.columns = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
 stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
-#print stocks_data.head()
-
-#stocks = ["AAPL"]
 stocks = pickle.load(open("sp500_symbols.pk","r"))
 
 
-columns = ['Adj_Close','Close','High','Low','Open','Symbol','Volume', "macd", "rsi", 
-        "slowk", "slowd",
-        "ema_10", "ema_20", "ema_30", "ema_40", "ema_50",
-        "v_ema_10", "v_ema_20", "v_ema_30", "v_ema_40", "v_ema_50"]
+columns = ['Adj_Close','Close','High','Low','Open','Symbol'
+            ,'Volume', "macd", "rsi", "slowk", "slowd",
+            "ema_10", "ema_20", "ema_30", "ema_40", "ema_50",
+            "v_ema_10", "v_ema_20", "v_ema_30", "v_ema_40", "v_ema_50"]
 
 latest_daily_report = pd.DataFrame(columns=columns)
 stocks_with_lag_data = pd.DataFrame()
