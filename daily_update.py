@@ -50,7 +50,7 @@ if __name__ == "__main__":
         elif len(stock_data) == 1:
             continue
         else:
-            stock_data = stock_data.sort(["Date"])
+            stock_data = stock_data.sort_values(by=["Date"])
             stock_data = stock_data.reset_index(drop=True)
             print stock_data
             stock_data = stock_data
