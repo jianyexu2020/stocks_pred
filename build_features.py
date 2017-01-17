@@ -18,133 +18,117 @@ def buildLaggedFeatures(s,lag=2,dropna=True):
         for col_name in s:
             new_dict[col_name]=s[col_name]
             # create lagged Series
-            for l in range(1,lag+1):
-                new_dict['%s_lag%d' %(col_name,l)]=s[col_name].shift(l)
+            #for l in range(1,lag+1):
+            new_dict['%s_lag%d' %(col_name,lag)]=s[col_name].shift(lag)
         lag_dict = {key: value for key, value in new_dict.items() if "lag" in key}
         res=pd.DataFrame(lag_dict,index=s.index)
 
     elif type(s) is pd.Series:
         the_range=range(lag+1)
-        res=pd.concat([s.shift(i) for i in the_range],axis=1)
-        res.columns=['lag_%d' %i for i in the_range]
+        #res=pd.concat([s.shift(i) for i in the_range],axis=1)
+        #res.columns=['lag_%d' %i for i in the_range]
+        res = pd.concat([s.shift(lag)], axis=1)
+        res.columns = ['lag_%d' % lag]
     else:
         print 'Only works for DataFrame or Series'
         return None
     if dropna:
         return res.dropna()
     else:
-        return res 
-
-stocks_data = pd.read_csv("stocks.csv")
-stocks_data.columns = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
-stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
-stocks = pickle.load(open("sp500_symbols.pk","r"))
+        return res
 
 
-columns = ['Adj_Close','Close','High','Low','Open','Symbol'
-            ,'Volume', "macd", "rsi", "slowk", "slowd",
-            "ema_10", "ema_20", "ema_30", "ema_40", "ema_50",
-            "v_ema_10", "v_ema_20", "v_ema_30", "v_ema_40", "v_ema_50"]
+if __name__ == "__main__":
+    # read stocks data from csv file
+    stocks_data = pd.read_csv("stocks.csv")
+    stocks_data.columns = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
+    stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
+    stock_names = pickle.load(open("sp500_symbols.pk","r"))
+    report_today = pd.DataFrame()
+    stocks_with_lag_data = pd.DataFrame()
 
-latest_daily_report = pd.DataFrame(columns=columns)
-stocks_with_lag_data = pd.DataFrame()
-#latest_daily_report["Date"] = pd.to_datetime(latest_daily_report["Date"], format="%Y-%m-%d")
+    #stock_names = ["AAPL"]
 
-for stock in stocks:
-    print "Processing stock: %s" % stock
-    sybl =  stocks_data.loc[(stocks_data.Symbol == stock),:]
-    if sybl.shape[0] <= 100:
-        continue
-    sybl.loc[:,"Adj_Close"] = sybl.loc[:,"Adj_Close"].astype(float)
-    sybl.loc[:,"Volume"] = sybl.loc[:,"Volume"].astype(float)
-    #sybl.loc[:,"Date"] = pd.to_datetime(sybl.loc[:,"Date"])
-    sybl.loc[:,"stock_index"] = sybl[["Symbol", "Date"]].apply(lambda x: '_'.join(x), axis=1)
-    sybl = sybl.set_index(['stock_index'])
-    sybl = sybl.sort_index()
-    print sybl.iloc[-3:,:]
+    for stock_name in stock_names:
+        print "Processing stock: %s" % stock_name
+        stock =  stocks_data.loc[(stocks_data.Symbol == stock_name),:]
+        if stock.shape[0] <= 100:
+            continue
+        stock.loc[:,"Adj_Close"] = stock.loc[:,"Adj_Close"].astype(float)
+        stock.loc[:,"Volume"] = stock.loc[:,"Volume"].astype(float)
+        #stock.loc[:,"Date"] = pd.to_datetime(stock.loc[:,"Date"])
+        stock.loc[:,"stock_index"] = stock[["Symbol", "Date"]].apply(lambda x: '_'.join(x), axis=1)
+        stock = stock.set_index(['stock_index'])
+        stock = stock.sort_index()
+        print stock.iloc[-3:,:]
 
-    close = np.array(sybl.Adj_Close)
-    volume = np.array(sybl.Volume)
-    high = np.array(sybl.High)
-    low = np.array(sybl.Low)
-    close_noadj = np.array(sybl.Close)
-    #print volume
-    macd, signal, hist = talib.MACD(np.array(close),
-                                fastperiod=12,
-                                slowperiod=26,
-                                signalperiod=9)
-    rsi = talib.RSI(np.array(close), 12)
+        close = np.array(stock.Adj_Close)
+        volume = np.array(stock.Volume)
+        high = np.array(stock.High)
+        low = np.array(stock.Low)
+        close_noadj = np.array(stock.Close)
 
-    ema_10 = talib.EMA(np.array(close), 10)
-    ema_20 = talib.EMA(np.array(close), 20)
-    ema_30 = talib.EMA(np.array(close), 30)
-    ema_40 = talib.EMA(np.array(close), 40)
-    ema_50 = talib.EMA(np.array(close), 50)
+        stock.loc[:,"macd1"], stock.loc[:,"macd2"], stock.loc[:,"macd"] = \
+            talib.MACD(close,
+                       fastperiod=12,
+                       slowperiod=26,
+                       signalperiod=9)
+        
+        stock.loc[:, "rsi"] = talib.RSI(close, 12)
 
-    v_ema_10 = talib.EMA(np.array(volume, dtype=float), 10)
-    v_ema_20 = talib.EMA(np.array(volume, dtype=float), 20)
-    v_ema_30 = talib.EMA(np.array(volume, dtype=float), 30)
-    v_ema_40 = talib.EMA(np.array(volume, dtype=float), 40)
-    v_ema_50 = talib.EMA(np.array(volume, dtype=float), 50)
+        for i in xrange(10, 60, 10):
+            ema_var_name = "ema_" + str(i)
+            v_ema_var_name = "v_ema_" + str(i)
+            stock.loc[:,ema_var_name] = talib.EMA(close, i)
+            stock.loc[:,v_ema_var_name] = talib.EMA(volume, i)
 
-    slowk, slowd = talib.STOCH(high=high, low=low, close=close_noadj ,fastk_period=14, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
-    #print slowk.shape
-    #print slowd.shape
-    #print rsi.shape
-
-
-    sybl.loc[:,"macd"] = hist
-    sybl.loc[:,"rsi"] = rsi
-    sybl.loc[:,"slowk"] = slowk
-    sybl.loc[:,"slowd"] = slowd
-
-    sybl.loc[:,"ema_10"] = ema_10
-    sybl.loc[:,"ema_20"] = ema_20
-    sybl.loc[:,"ema_30"] = ema_30
-    sybl.loc[:,"ema_40"] = ema_40
-    sybl.loc[:,"ema_50"] = ema_50
-
-    sybl.loc[:,"v_ema_10"] = v_ema_10
-    sybl.loc[:,"v_ema_20"] = v_ema_20
-    sybl.loc[:,"v_ema_30"] = v_ema_30
-    sybl.loc[:,"v_ema_40"] = v_ema_40
-    sybl.loc[:,"v_ema_50"] = v_ema_50
+        for i in xrange(100, 200, 100):
+            ema_var_name = "ema_" + str(i)
+            v_ema_var_name = "v_ema_" + str(i)
+            stock.loc[:,ema_var_name] = talib.EMA(close, i)
+            stock.loc[:,v_ema_var_name] = talib.EMA(volume, i)
 
 
-    #if sybl["rsi"][len(sybl.index)-1] < 30 \
-    #or sybl["rsi"][len(sybl.index)-1] > 70:
-    #print sybl.iloc[-2:,:]
-    latest_daily_report = latest_daily_report.append(sybl.iloc[-1,:])#ignore_index=True)#.drop("index", axis=1)
-    if latest_daily_report.shape[0] > 500:
-        break
-    lag_data = buildLaggedFeatures(sybl, lag=1, dropna=False)
-    sybl_with_lag_data = pd.merge(sybl, lag_data, left_index=True, right_index=True)
-    sybl_with_lag_data.dropna(inplace=True) 
-    sybl_with_lag_data["increase_from_last_day"] = (sybl_with_lag_data["Adj_Close"] -  sybl_with_lag_data["Adj_Close_lag1"]) / sybl_with_lag_data["Adj_Close_lag1"] * 100
-    sybl_with_lag_data["target"] = sybl_with_lag_data["increase_from_last_day"].apply(lambda x: 1 if x > 0 else 0)
-    #print sybl_with_lag_data
-    stocks_with_lag_data = stocks_with_lag_data.append(sybl_with_lag_data) 
-latest_daily_report_cols = [ "Adj_Close", "Close","High","Low","Open", "Volume", "macd", "rsi", "slowk", "slowd", "ema_10", "v_ema_10"]
+        stock.loc[:,"slowk"], stock.loc[:, "slowd"] = talib.STOCH(high=high,
+                                                                  low=low,
+                                                                  close=close_noadj,
+                                                                  fastk_period=14,
+                                                                  slowk_period=3, 
+                                                                  slowk_matype=0, 
+                                                                  slowd_period=3, 
+                                                                  slowd_matype=0)
 
-latest_daily_report = latest_daily_report[latest_daily_report_cols]
-latest_daily_report["Adj_Close"] = latest_daily_report["Adj_Close"].astype("float")
-latest_daily_report["Close"] = latest_daily_report["Close"].astype("float")
-latest_daily_report["Open"] = latest_daily_report["Open"].astype("float")
-latest_daily_report["High"] = latest_daily_report["High"].astype("float")
-latest_daily_report["Low"] = latest_daily_report["Low"].astype("float")
-latest_daily_report["Volume"] = latest_daily_report["Volume"].astype("float")
-latest_daily_report["rsi"] = latest_daily_report["rsi"].astype("float")
-latest_daily_report["macd"] = latest_daily_report["macd"].astype("float")
-latest_daily_report["slowk"] = latest_daily_report["slowk"].astype("float")
-latest_daily_report["slowd"] = latest_daily_report["slowd"].astype("float")
-latest_daily_report["ema_10"] = latest_daily_report["ema_10"].astype("float")
-latest_daily_report["v_ema_10"] = latest_daily_report["v_ema_10"].astype("float")
-latest_daily_report["close_over_ema_10"] = latest_daily_report["Adj_Close"] / latest_daily_report["ema_10"]
-latest_daily_report["volume_over_ema_10"] = latest_daily_report["Volume"] / latest_daily_report["v_ema_10"]
+        report_today = report_today.append(stock.iloc[-1,:])
+        lag_data_1 = buildLaggedFeatures(stock, lag=1, dropna=False)
+        lag_data_30 = buildLaggedFeatures(stock, lag=30, dropna=False)
+        lag_data_60 = buildLaggedFeatures(stock, lag=60, dropna=False)
+        stock_with_lag_data = pd.merge(stock, lag_data_1, left_index=True, right_index=True)
+        stock_with_lag_data = pd.merge(stock_with_lag_data, lag_data_30, left_index=True, right_index=True)
+        stock_with_lag_data = pd.merge(stock_with_lag_data, lag_data_60, left_index=True, right_index=True)
+        stock_with_lag_data.dropna(inplace=True)
+        stock_with_lag_data["increase_from_last_day"] \
+            = (stock_with_lag_data["Adj_Close"] -  stock_with_lag_data["Adj_Close_lag1"]) / stock_with_lag_data["Adj_Close_lag1"] * 100
+        stock_with_lag_data["target"] = stock_with_lag_data["increase_from_last_day"].apply(lambda x: 1 if x > 0 else 0)
+        print stock_with_lag_data.tail()
+        stocks_with_lag_data = stocks_with_lag_data.append(stock_with_lag_data)
 
 
-latest_daily_report = np.round(latest_daily_report, 2)
-latest_daily_report.sort(["rsi"], ascending=True, inplace=True)
+    report_today_cols = [ "Adj_Close", "Close","High","Low","Open",
+                          "Volume", "macd", "rsi", "slowk", "slowd",
+                          "ema_10", "v_ema_10"]
 
-latest_daily_report.to_csv("latest_daily_report.csv", sep='\t')
-stocks_with_lag_data.to_csv("stocks_with_lag_data.csv", sep='\t')
+    report_today = report_today[report_today_cols]
+    for var in report_today_cols:
+        report_today[var] = report_today[var].astype("float")
+
+    report_today["close_over_ema_10"] = report_today["Adj_Close"] / report_today["ema_10"]
+    report_today["volume_over_ema_10"] = report_today["Volume"] / report_today["v_ema_10"]
+
+
+    report_today = np.round(report_today, 2)
+    report_today.sort_values(by=["rsi"], ascending=True, inplace=True)
+
+    print report_today.head()
+
+    report_today.to_csv("report_today.csv", sep='\t')
+    stocks_with_lag_data.to_csv("stocks_with_lag_data.csv", sep='\t')
