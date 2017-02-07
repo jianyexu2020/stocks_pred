@@ -39,16 +39,19 @@ def buildLaggedFeatures(s,lag=2,dropna=True):
 
 
 if __name__ == "__main__":
+    try:
+        myfile = open("report_today.csv", "a+")
+    except IOError:
+        print "Could not open file! Please close csv file!"
     # read stocks data from csv file
     stocks_data = pd.read_csv("stocks.csv")
     stocks_data.columns = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
     stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
-    stock_names = pickle.load(open("sp500_symbols.pk","r"))
+    stock_names = list(stocks_data["Symbol"].unique())
     report_today = pd.DataFrame()
     stocks_with_lag_data = pd.DataFrame()
 
     #stock_names = ["AAPL"]
-
     for stock_name in stock_names:
         print "Processing stock: %s" % stock_name
         stock =  stocks_data.loc[(stocks_data.Symbol == stock_name),:]
@@ -88,13 +91,12 @@ if __name__ == "__main__":
             stock.loc[:,ema_var_name] = talib.EMA(close, i)
             stock.loc[:,v_ema_var_name] = talib.EMA(volume, i)
 
-
         stock.loc[:,"slowk"], stock.loc[:, "slowd"] = talib.STOCH(high=high,
                                                                   low=low,
                                                                   close=close_noadj,
                                                                   fastk_period=14,
                                                                   slowk_period=3, 
-                                                                  slowk_matype=0, 
+                                                                  slowk_matype=0,
                                                                   slowd_period=3, 
                                                                   slowd_matype=0)
 
@@ -109,9 +111,8 @@ if __name__ == "__main__":
         stock_with_lag_data["increase_from_last_day"] \
             = (stock_with_lag_data["Adj_Close"] -  stock_with_lag_data["Adj_Close_lag1"]) / stock_with_lag_data["Adj_Close_lag1"] * 100
         stock_with_lag_data["target"] = stock_with_lag_data["increase_from_last_day"].apply(lambda x: 1 if x > 0 else 0)
-        print stock_with_lag_data.tail()
+        #print stock_with_lag_data.tail()
         stocks_with_lag_data = stocks_with_lag_data.append(stock_with_lag_data)
-
 
     report_today_cols = [ "Adj_Close", "Close","High","Low","Open",
                           "Volume", "macd", "rsi", "slowk", "slowd",
@@ -124,11 +125,10 @@ if __name__ == "__main__":
     report_today["close_over_ema_10"] = report_today["Adj_Close"] / report_today["ema_10"]
     report_today["volume_over_ema_10"] = report_today["Volume"] / report_today["v_ema_10"]
 
-
     report_today = np.round(report_today, 2)
     report_today.sort_values(by=["rsi"], ascending=True, inplace=True)
 
-    print report_today.head()
+    print report_today
 
     report_today.to_csv("report_today.csv", sep='\t')
     stocks_with_lag_data.to_csv("stocks_with_lag_data.csv", sep='\t')
