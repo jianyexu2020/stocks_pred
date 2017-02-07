@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import datetime as dt
+from dateutil import relativedelta
 from matplotlib.finance import candlestick_ohlc
 
 def plot_stock(data):
@@ -17,7 +17,7 @@ def plot_stock(data):
     plt.xticks(rotation=45)
     plt.xlabel("Date")
     plt.ylabel("Price")
-    plt.title(symbol)
+    plt.title("data for stock: " + symbol)
     candlestick_ohlc(ax, tuples, width=.6, colorup='g', alpha=.4)
     ax.plot(data["Date2"], data["ema_17"])
     ax.plot(data["Date2"], data["ema_43"])
@@ -25,6 +25,9 @@ def plot_stock(data):
     ax2.set_ylabel('Volume', color='r')
     ax2.set_ylim(ymax=data["Volume"].max()*5)
     ax2.bar(data["Date2"], data["Volume"])
+    xmax = data.Date2.max() + 21
+    xmin = data.Date2.min() - 21
+    ax2.set_xlim([xmin, xmax])
     plt.close()
     return fig
     #plt.show()
