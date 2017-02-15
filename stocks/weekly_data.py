@@ -1,8 +1,9 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import talib
 from matplotlib.backends.backend_pdf import PdfPages
-from make_plot import plot_stock
+
+from lib.make_plot import plot_stock
 
 
 def split_adjust(stock_data):
@@ -26,7 +27,7 @@ print stocks
 ohlc_dict = {'Open':'first','High':'max','Low':'min','Close': 'last','Volume': 'sum','Adj_Close': 'last', 'Symbol':'max'}
 weekly_data = pd.DataFrame(columns=['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume'])
 
-#stocks = ["AAPL", "GILD"]
+#stocks = ["AAPL", "GILD", "M"]
 with PdfPages('weekly_data_plot.pdf') as pdf:
     for stock in stocks:
         stock_daily_data = daily_data.loc[daily_data.Symbol==stock, :]

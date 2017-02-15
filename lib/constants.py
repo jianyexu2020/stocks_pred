@@ -1,0 +1,1 @@
+SLICE_NONE = ["label": "no_slice", "db_column":"", "df_column":""]
