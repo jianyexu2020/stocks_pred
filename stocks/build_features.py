@@ -9,6 +9,8 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
+STOCKS_CSV = "C:\Users\\ralph\OneDrive\Documents\GitHub\stocks_pred\stocks\stocks.csv"
+
 def buildLaggedFeatures(s,lag=2,dropna=True):
     """
     Builds a new DataFrame to facilitate regressing over all possible lagged features
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     except IOError:
         print "Could not open file! Please close csv file!"
     # read stocks data from csv file
-    stocks_data = pd.read_csv("stocks.csv")
+    stocks_data = pd.read_csv(STOCKS_CSV)
     stocks_data.columns = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
     stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
     stock_names = list(stocks_data["Symbol"].unique())
