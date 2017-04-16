@@ -4,6 +4,7 @@ import talib
 from matplotlib.backends.backend_pdf import PdfPages
 
 from lib.make_plot import plot_stock
+STOCKS_CSV = "C:\Users\\ralph\OneDrive\Documents\GitHub\stocks_pred\stocks\stocks.csv"
 
 
 def split_adjust(stock_data):
@@ -14,10 +15,10 @@ def split_adjust(stock_data):
     return stock_data
 
 
-daily_data = pd.read_csv("stocks.csv", header=None)
+daily_data = pd.read_csv(STOCKS_CSV, header=None)
 daily_data.columns \
     = ['Adj_Close','Close','Date','High','Low','Open','Symbol','Volume']
-daily_data["Date"] =  pd.to_datetime(daily_data["Date"])
+daily_data["Date"] = pd.to_datetime(daily_data["Date"])
 daily_data.set_index("Date", inplace=True)
 
 stocks = list(daily_data.Symbol.unique())
