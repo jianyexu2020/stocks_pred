@@ -1,9 +1,8 @@
 import pytz
-from dateutil.relativedelta import *
 from datetime import datetime
 from yahoo_finance import Share
 import pandas as pd
-import pickle
+import time
 pd.set_option('display.height', 1000)
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -12,7 +11,8 @@ pd.set_option('display.width', 1000)
 SITE = "http://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 START = datetime(1900, 1, 1, 0, 0, 0, 0, pytz.utc)
 END = datetime.today().utcnow()
-
+STOCKS_CSV = "C:\Users\\ralph\OneDrive\Documents\GitHub\stocks_pred\stocks\stocks.csv"
+NAMES = ['Adj_Close', 'Close', 'Date', 'High', 'Low', 'Open', 'Symbol', 'Volume']
 
 def fetch_stock_data(stock_name, start_date, end_date):
     if start_date < str(end_date):
@@ -21,10 +21,12 @@ def fetch_stock_data(stock_name, start_date, end_date):
         data = pd.DataFrame(share.get_historical(start_date, end_date))
         return data
 
+
+
 start_time = datetime.now()
 if __name__ == "__main__":
-    stocks_data = pd.read_csv("stocks.csv", header=None)
-    stocks_data.columns = ['Adj_Close', 'Close', 'Date', 'High', 'Low', 'Open', 'Symbol', 'Volume']
+    stocks_data = pd.read_csv(STOCKS_CSV, header=None)
+    stocks_data.columns = NAMES
     stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
     stocks = list(stocks_data["Symbol"].unique())
     off_market = ["CPGX", "GAS", "TE", "UA-C"]
@@ -36,7 +38,7 @@ if __name__ == "__main__":
     while True:
         updated_this_round = 0
         updated_stocks = []
-        variables = ['Adj_Close', 'Close', 'Date', 'High', 'Low', 'Open', 'Symbol', 'Volume']
+        variables = NAMES
         stock_data_combined = pd.DataFrame(columns=variables)
         for stock_name in stocks:
             #print "processing stock: %s" % stock_name
@@ -61,16 +63,24 @@ if __name__ == "__main__":
                 updated_stocks.append(stock_name)
         print "This round updated %d stocks" % updated_this_round
         if updated_this_round:
-            with open('stocks.csv', 'a+') as f:
+            with open(STOCKS_CSV, 'a+') as f:
                 stock_data_combined.to_csv(f, header=False, index=False)
             stocks = [stock for stock in stocks if stock not in updated_stocks]
         min_elapsed = (datetime.now() - start_time)/60
         if len(stocks) <= 5:
             print "Only 5 stocks not updated, stop"
             break
-        if min_elapsed.total_seconds()/60.0 > 45.0:
             print "update took more than 45 min, stop"
             break
 
-print "The stocks not updated are %s" % str(stocks)
-print "data update took %s seconds" % min_elapsed
+    print "The stocks not updated are %s" % str(stocks)
+    print "data update took %s seconds" % min_elapsed
+
+    time.sleep(120)
+    # drop duplicates and save the data to csv
+    stocks_data = pd.read_csv(STOCKS_CSV, names=NAMES, header=None)
+    stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
+
+    with open(STOCKS_CSV, 'w') as f:
+        stocks_data.to_csv(f, header=False, index=False)
+
