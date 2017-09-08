@@ -1,8 +1,10 @@
 import pytz
 from datetime import datetime
-from yahoo_finance import Share
+#from yahoo_finance import Share # not working since May 2017
+from stocks.scrape_yahoofinance import download_quote
 import pandas as pd
 import time
+from random import randint
 pd.set_option('display.height', 1000)
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -17,30 +19,27 @@ NAMES = ['Adj_Close', 'Close', 'Date', 'High', 'Low', 'Open', 'Symbol', 'Volume'
 def fetch_stock_data(stock_name, start_date, end_date):
     if start_date < str(end_date):
         print "fetching stock data: %s starting from date %s and ending on %s" % (stock_name, start_date, end_date)
-        share = Share(stock_name)
-        data = pd.DataFrame(share.get_historical(start_date, end_date))
+        data = download_quote(stock_name, start_date, end_date)
         return data
 
 
-
-start_time = datetime.now()
-if __name__ == "__main__":
-    stocks_data = pd.read_csv(STOCKS_CSV, header=None)
-    stocks_data.columns = NAMES
+def daily_update_stocks():
+    start_time = datetime.now()
+    stocks_data = pd.read_csv(STOCKS_CSV, names=NAMES, header=None)
     stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
     stocks = list(stocks_data["Symbol"].unique())
-    off_market = ["CPGX", "GAS", "TE", "UA-C"]
+    off_market = ["SE", "CPGX", "GAS", "TE", "UA-C", "YHOO"]
     stocks = [stock for stock in stocks if stock not in off_market]
-    end_time = datetime.now()# + relativedelta(days=+1)
+    end_time = datetime.now()
     end_date = str(end_time.date())
 
     #stocks = ["GILD"]
     while True:
         updated_this_round = 0
         updated_stocks = []
-        variables = NAMES
-        stock_data_combined = pd.DataFrame(columns=variables)
+        stock_data_combined = pd.DataFrame(columns=NAMES)
         for stock_name in stocks:
+            time.sleep(randint(1,5))
             #print "processing stock: %s" % stock_name
             start_date = stocks_data.ix[stocks_data.Symbol == stock_name, :].Date.max()
             start_date = datetime.strptime(str(start_date),'%Y-%m-%d') #+ relativedelta(days=+1)
@@ -48,39 +47,44 @@ if __name__ == "__main__":
             print "start_date is %s and end_date is %s" % (start_date, end_date)
             if start_date < end_date:
                 stock_data = fetch_stock_data(stock_name, start_date, end_date)
-                if stock_data.Date.max() == end_date :
+                times = 1
+                while len(stock_data) == 0 and times < 2:
+                    time.sleep(10)
+                    stock_data = fetch_stock_data(stock_name, start_date, end_date)
+                    times += 1
+                if len(stock_data) == 0:
+                    print "Failed updating most recent data for stock %s" % stock_name
+                    continue
+                else:
                     print stock_data
                     stock_data = stock_data.sort_values(by=["Date"])
                     stock_data = stock_data.reset_index(drop=True)
-                    updated_stocks.append(stock_name)
                     stock_data_combined = pd.concat([stock_data_combined, stock_data])
                     updated_this_round += 1
-                else:
-                    print "Failed updating most recent data for stock %s" % stock_name
-                    continue
             else:
                 print "skip updating because stock %s is already updated" % stock_name
-                updated_stocks.append(stock_name)
-        print "This round updated %d stocks" % updated_this_round
-        if updated_this_round:
-            with open(STOCKS_CSV, 'a+') as f:
-                stock_data_combined.to_csv(f, header=False, index=False)
-            stocks = [stock for stock in stocks if stock not in updated_stocks]
+            updated_stocks.append(stock_name)
+            if updated_this_round == 5:
+                with open(STOCKS_CSV, 'a+') as f:
+                    stock_data_combined.to_csv(f, header=False, index=False)
+                print "This round updated %d stocks" % updated_this_round
+                break
+        stocks = [stock for stock in stocks if stock not in updated_stocks]
         min_elapsed = (datetime.now() - start_time)/60
         if len(stocks) <= 5:
             print "Only 5 stocks not updated, stop"
-            break
-            print "update took more than 45 min, stop"
             break
 
     print "The stocks not updated are %s" % str(stocks)
     print "data update took %s seconds" % min_elapsed
 
-    time.sleep(120)
     # drop duplicates and save the data to csv
     stocks_data = pd.read_csv(STOCKS_CSV, names=NAMES, header=None)
     stocks_data.drop_duplicates(["Date", "Symbol"], inplace=True)
-
-    with open(STOCKS_CSV, 'w') as f:
+    with open(STOCKS_CSV, 'wb') as f:
         stocks_data.to_csv(f, header=False, index=False)
 
+    return stocks_data
+
+if __name__ == "__main__":
+    daily_update_stocks()
